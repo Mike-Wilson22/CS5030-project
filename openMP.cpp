@@ -24,13 +24,12 @@ struct Point {
     }
 };
 
-
-int main() {
+std::vector<Point>* readCSV(std::string file) {
     // Define 2d vector to hold csv, could also be map if needed
     std::vector<Point> csvVector;
 
     // Open and read file into vector
-    std::ifstream csvFile("data/tracks_features.csv");
+    std::ifstream csvFile(file);
     std::string id;
     // Check if there's another line, save id if so
     bool readLabels = false;
@@ -81,7 +80,15 @@ int main() {
     // Could be good to change to a map to identify by name instead
     // Might make splitting data more annoying, however
 
+    return &csvVector;
+}
 
+
+int main() {
+    
+    std::vector<Point> *csvVector = readCSV("data/tracks_features.csv");
+
+    
 
     return 0;
 }
