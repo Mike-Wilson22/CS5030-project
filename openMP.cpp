@@ -3,33 +3,35 @@
 #include <string>
 #include <fstream>
 #include <iostream>
+#include <omp.h>
 
 // Define structure Point with all attributes
 struct Point {
-    std::vector<double> *items;    // coordinates
+    std::vector<double> items;    // coordinates
     int cluster;     // no default cluster
     double minDist;  // default infinite dist to nearest cluster
         
-    Point(std::vector<double> *items) : 
+    Point(std::vector<double> items) : 
         items(items),
         cluster(-1),
         minDist(__DBL_MAX__) {}
 
-    double distance(Point p) {
-        double sumDistance;
-        for (int i = 0; i < items->size(); i++) {
-            sumDistance += (p.items->at(i) - items->at(i)) * (p.items->at(i) - items->at(i));
+    double distance(Point *p) {
+        double sumDistance = 0;
+        for (int i = 0; i < items.size(); i++) {
+            sumDistance += (p->items.at(i) - items.at(i)) * (p->items.at(i) - items.at(i));
         }
         return sumDistance;
     }
 };
 
-std::vector<Point>* readCSV(std::string file) {
+std::vector<Point> readCSV(std::string filename) {
+
     // Define 2d vector to hold csv, could also be map if needed
     std::vector<Point> csvVector;
 
     // Open and read file into vector
-    std::ifstream csvFile(file);
+    std::ifstream csvFile(filename);
     std::string id;
     // Check if there's another line, save id if so
     bool readLabels = false;
@@ -70,8 +72,9 @@ std::vector<Point>* readCSV(std::string file) {
 
         // Last item is delimited by '\n' instead of ','
         std::getline(csvFile, item, '\n');
-
-        csvVector.push_back(Point(&items));
+        if (items.size() > 0) {
+            csvVector.push_back(Point(items));
+        }
     }
 
     csvFile.close();
@@ -80,15 +83,105 @@ std::vector<Point>* readCSV(std::string file) {
     // Could be good to change to a map to identify by name instead
     // Might make splitting data more annoying, however
 
-    return &csvVector;
+    return csvVector;
 }
 
+void kMeans(std::vector<Point>* points, int epochs, int k, int thread_num) {
+
+    // Initialize centroids
+    std::vector<Point> centroids;
+    srand(100);
+    for (int i = 0; i < k; ++i) {
+        Point p = Point(points->at(rand() % points->size()).items);
+        centroids.push_back(p);
+    }
+
+    
+    // Run kmeans algorithm
+    for (int x = 0; x < epochs; ++x) {
+        // Assign all points to initial clusters
+        for (int i = 0; i < k; ++i) {
+            #pragma omp parallel for num_threads(thread_num)
+            for (int j = 0; j < points->size(); ++j) {
+                Point *p = &(points->at(j));
+                double dist = centroids.at(i).distance(p);
+                if (dist < p->minDist) {
+                    p->minDist = dist;
+                    p->cluster = i;
+                }
+            }
+        }
+    
+        // Initialize vectors to help with calculating means
+        std::vector<int> nPoints;
+        std::vector<std::vector<double>> sums;
+    
+        for (int i = 0; i < k; ++i) {
+            nPoints.push_back(0);
+        }
+        for (int j = 0; j < points->at(0).items.size(); ++j) {
+            std::vector<double> sum;
+            sums.push_back(sum);
+            for (int x = 0; x < k; ++x) {
+                sums.at(j).push_back(0.0);
+            }
+        }
+
+        // for (int i = 0; i < points->size(); ++i) {
+        //     int clusterId = points->at(i).cluster;
+        //     nPoints[clusterId]++;
+        //     for (int j = 0; j < sums.size(); ++j) {
+        //         sums[j][clusterId] += points->at(i).items.at(j);
+        //     }
+    
+        //     points->at(i).minDist = __DBL_MAX__;
+        // }
+        #pragma omp parallel for num_threads(thread_num)
+        for (int i = 0; i < sums.size(); ++i) {
+            for (int j = 0; j < points->size(); ++j) {
+                sums[i][points->at(j).cluster] += points->at(j).items.at(i);
+            }
+        }
+
+        #pragma omp parallel for num_threads(thread_num)
+        for (int i = 0; i < points->size(); ++i) {
+            nPoints[points->at(i).cluster]++;
+            points->at(i).minDist = __DBL_MAX__;
+        }
+    
+        #pragma omp parallel for num_threads(thread_num)
+        for (int i = 0; i < centroids.size(); ++i) {
+            for (int j = 0; j < sums.size(); ++j) {
+                centroids.at(i).items.at(j) = sums[i][j] / nPoints[i];
+            }
+        }
+    }
+}
+
+void writeToCSV(std::vector<Point>* points, std::string filename) {
+    std::cout << "print csv" << std::endl;
+    std::ofstream myFile;
+    myFile.open(filename);
+
+    myFile << "danceability,energy,key,loudness,mode,speechiness,acousticness,instrumentalness,liveness,valence,tempo,cluster" << std::endl;
+
+    for (std::vector<Point>::iterator it = points->begin(); it != points->end(); ++it) {
+        std::vector<double> items = it->items;
+        for (int i = 0; i < items.size(); ++i) {
+            myFile << items.at(i) << ",";
+        }
+        myFile << it->cluster << std::endl;
+    }
+    myFile.close();
+}
 
 int main() {
-    
-    std::vector<Point> *csvVector = readCSV("data/tracks_features.csv");
 
-    
+    std::vector<Point> points = readCSV("data/tracks_features.csv");
 
+    kMeans(&points, 5, 5, 5);
+
+    writeToCSV(&points, "data/output_omp.csv");
+    
     return 0;
 }

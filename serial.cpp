@@ -74,9 +74,6 @@ std::vector<Point> readCSV(std::string filename) {
         if (items.size() > 0) {
             csvVector.push_back(Point(items));
         }
-        if (items.size() > 11) {
-            int x = 1;
-        }
     }
 
     csvFile.close();
@@ -94,45 +91,42 @@ void kMeans(std::vector<Point>* points, int epochs, int k) {
     std::vector<Point> centroids;
     srand(100);
     for (int i = 0; i < k; ++i) {
-        std::vector<double> newItems;
-        for (int j = 0; j < 11; ++j) {
-            int num = rand() % points->size();
-            Point p2 = points->at(num);
-            double item = p2.items.at(j);
-            newItems.push_back(item);
-        }
-        Point p = Point(newItems);
+        Point p = Point(points->at(rand() % points->size()).items);
         centroids.push_back(p);
     }
 
-    // Assign all points to initial clusters
-    for (int i = 0; i < k; ++i) {
-        for (int j = 0; j < points->size(); ++j) {
-            Point *p = &(points->at(j));
-            double dist = centroids.at(i).distance(p);
-            if (dist < p->minDist) {
-                p->minDist = dist;
-                p->cluster = i;
+    
+    // Run kmeans algorithm
+    for (int x = 0; x < epochs; ++x) {
+
+        // Assign all points to initial clusters
+        for (int i = 0; i < k; ++i) {
+            for (int j = 0; j < points->size(); ++j) {
+                Point *p = &(points->at(j));
+                double dist = centroids.at(i).distance(p);
+                if (dist < p->minDist) {
+                    p->minDist = dist;
+                    p->cluster = i;
+                }
             }
         }
-    }
-
-    // Initialize vectors to help with calculating means
-    std::vector<int> nPoints;
-    std::vector<std::vector<double>> sums;
-
-    for (int i = 0; i < k; ++i) {
-        nPoints.push_back(0);
-    }
-    for (int j = 0; j < points->at(0).items.size(); ++j) {
-        std::vector<double> sum;
-        sums.push_back(sum);
-        for (int x = 0; x < k; ++x) {
-            sums.at(j).push_back(0.0);
+    
+        // Initialize vectors to help with calculating means
+        std::vector<int> nPoints;
+        std::vector<std::vector<double>> sums;
+    
+        for (int i = 0; i < k; ++i) {
+            nPoints.push_back(0);
         }
-    }
+        for (int j = 0; j < points->at(0).items.size(); ++j) {
+            std::vector<double> sum;
+            sums.push_back(sum);
+            for (int x = 0; x < k; ++x) {
+                sums.at(j).push_back(0.0);
+            }
+        }
 
-    for (int x = 0; x < epochs; ++x) {
+        // Add distance up for each point
         for (int i = 0; i < points->size(); ++i) {
             int clusterId = points->at(i).cluster;
             nPoints[clusterId]++;
@@ -143,6 +137,7 @@ void kMeans(std::vector<Point>* points, int epochs, int k) {
             points->at(i).minDist = __DBL_MAX__;
         }
     
+        // Find mean of all points
         for (int i = 0; i < centroids.size(); ++i) {
             for (int j = 0; j < sums.size(); ++j) {
                 centroids.at(i).items.at(j) = sums[i][j] / nPoints[i];
@@ -152,7 +147,6 @@ void kMeans(std::vector<Point>* points, int epochs, int k) {
 }
 
 void writeToCSV(std::vector<Point>* points, std::string filename) {
-    std::cout << "print csv" << std::endl;
     std::ofstream myFile;
     myFile.open(filename);
 
