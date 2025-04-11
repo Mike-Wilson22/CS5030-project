@@ -1,8 +1,11 @@
-#include <omp.h>
 #include <vector>
 #include <string>
 #include <fstream>
 #include <iostream>
+#include <sstream>
+#include <numeric>
+#include <algorithm>
+#include <random>
 
 // Define structure Point with all attributes
 struct Point {
@@ -25,63 +28,43 @@ struct Point {
 };
 
 std::vector<Point> readCSV(std::string filename) {
-
-    // Define 2d vector to hold csv, could also be map if needed
     std::vector<Point> csvVector;
 
-    // Open and read file into vector
     std::ifstream csvFile(filename);
-    std::string id;
-    // Check if there's another line, save id if so
-    bool readLabels = false;
-    while (std::getline(csvFile, id, ',')) {
+    if (!csvFile.is_open()) {
+        std::cerr << "Error opening file: " << filename << std::endl;
+        return csvVector;
+    }
+
+    std::string line;
+
+    // Skip header line if present
+    std::getline(csvFile, line);
+
+    while (std::getline(csvFile, line)) {
+        std::stringstream ss(line);
+        std::string token;
         std::vector<double> items;
 
-        // Go through next 6 items
-        std::string item;
-        for (int i = 1; i < 9; i++) {
-            std::getline(csvFile, item, ',');
-        }
-
-        // Read values that are being saved currently
-        // If the cast fails, there was an additional comma earlier
-        // Run the loop from the beginning, try to read the next value
-        // If we run into an error, an incorrect value may have been read into the vector
-        // Clear out the vector to remove any items that were accidentally read in
-        int i = 9;
-        while (i < 20) {
-            std::getline(csvFile, item, ',');
-            if (readLabels) {
+        int col = 0;
+        while (std::getline(ss, token, ',')) {
+            if (col >= 9 && col < 20) { // extract columns 9–19
                 try {
-                    items.push_back(std::stod(item));
-                } catch (const std::invalid_argument& e) {
-                    i = 8;
-                    while (items.begin() != items.end()) {
-                        items.erase(items.begin());
-                    }
+                    items.push_back(std::stod(token));
+                } catch (...) {
+                    items.clear();
+                    break;
                 }
             }
-            i++;
-        }
-        if (!readLabels) {readLabels = true;}
-
-        for (int i = 20; i < 24; i++) {
-            std::getline(csvFile, item, ',');
+            ++col;
         }
 
-        // Last item is delimited by '\n' instead of ','
-        std::getline(csvFile, item, '\n');
-        if (items.size() > 0) {
+        if (!items.empty()) {
             csvVector.push_back(Point(items));
         }
     }
 
     csvFile.close();
-
-    // Type of item in vector is currently identified by index
-    // Could be good to change to a map to identify by name instead
-    // Might make splitting data more annoying, however
-
     return csvVector;
 }
 
@@ -89,20 +72,22 @@ void kMeans(std::vector<Point>* points, int epochs, int k) {
 
     // Initialize centroids
     std::vector<Point> centroids;
-    srand(100);
+    std::vector<int> indices(points->size());
+    std::iota(indices.begin(), indices.end(), 0);
+    std::shuffle(indices.begin(), indices.end(), std::default_random_engine(100));
+    
     for (int i = 0; i < k; ++i) {
-        Point p = Point(points->at(rand() % points->size()).items);
-        centroids.push_back(p);
+        centroids.push_back(Point(points->at(indices[i]).items));
     }
-
     
     // Run kmeans algorithm
     for (int x = 0; x < epochs; ++x) {
 
         // Assign all points to initial clusters
-        for (int i = 0; i < k; ++i) {
-            for (int j = 0; j < points->size(); ++j) {
-                Point *p = &(points->at(j));
+        for (int j = 0; j < points->size(); ++j) {
+            Point* p = &(points->at(j));
+            p->minDist = __DBL_MAX__;  // Reset before checking
+            for (int i = 0; i < k; ++i) {
                 double dist = centroids.at(i).distance(p);
                 if (dist < p->minDist) {
                     p->minDist = dist;
@@ -139,14 +124,20 @@ void kMeans(std::vector<Point>* points, int epochs, int k) {
     
         // Find mean of all points
         for (int i = 0; i < centroids.size(); ++i) {
+            if (nPoints[i] == 0) continue;
             for (int j = 0; j < sums.size(); ++j) {
-                centroids.at(i).items.at(j) = sums[i][j] / nPoints[i];
+                centroids.at(i).items.at(j) = sums[j][i] / nPoints[i];
             }
+            
         }
     }
 }
 
 void writeToCSV(std::vector<Point>* points, std::string filename) {
+
+    constexpr int START_COL = 9;
+    constexpr int END_COL = 20;
+
     std::ofstream myFile;
     myFile.open(filename);
 
@@ -165,6 +156,10 @@ void writeToCSV(std::vector<Point>* points, std::string filename) {
 int main() {
 
     std::vector<Point> points = readCSV("data/tracks_features.csv");
+    if (points.empty()) {
+        std::cerr << "Error: No points loaded from CSV." << std::endl;
+        return 1;
+    }    
 
     kMeans(&points, 5, 5);
 
