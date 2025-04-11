@@ -87,6 +87,7 @@ std::vector<double> flattenPoints(const std::vector<Point>& points) {
     return flat;
 }
 
+//Similar logic for the clusters.
 std::vector<int> flattenClusters(const std::vector<Point>& points) {
     std::vector<int> flat;
     for (const Point& p : points) {
@@ -315,7 +316,7 @@ void kMeansMPI(std::vector<Point>& allPoints, int k, int epochs, int rank, int s
         }
 
         // Step 4: Local sums and counts
-        size_t dim = (localPoints.empty()) ? 11 : localPoints[0].items.size(); // <-- replace 11 if needed
+        size_t dim = (localPoints.empty()) ? 11 : localPoints[0].items.size(); 
 
         std::vector<std::vector<double>> localSums(k, std::vector<double>(dim, 0.0));
         std::vector<int> localCounts(k, 0);
