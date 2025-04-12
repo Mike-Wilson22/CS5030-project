@@ -30,7 +30,11 @@
 *.exe
 *.out
 *.app
+serial
+openMP
+MPI
 
 # vs code task execution
 *.vscode
 data/*
+SpotifyPlot/data/*

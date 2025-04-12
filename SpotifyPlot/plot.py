@@ -3,7 +3,7 @@ import matplotlib.pyplot as plt
 from sklearn.decomposition import PCA
 
 #You can change this to read in whichever implementation dataset you output.
-df = pd.read_csv("data/output_mpi.csv")
+df = pd.read_csv("SpotifyPlot/data/output.csv")
 features = df.drop("cluster", axis=1)
 labels = df["cluster"]
 
