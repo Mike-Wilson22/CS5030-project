@@ -11,6 +11,25 @@
 #include <algorithm>
 #include <random>
 
+// Compare output files (validate output)
+void compareFiles(std::string filename, std::string filename2) {
+    std::ifstream file1(filename);
+    std::ifstream file2(filename2);
+
+    std::string line1, line2;
+    while(getline(file1, line1) && getline(file2, line2)) {
+        if (line1 != line2) {
+            std::cout << "Files are not the same" <<std::endl;
+            return;
+        }
+    }
+
+    file1.close();
+    file2.close();
+
+    std::cout << "Files are the same" <<std::endl;
+}
+
 // ------------------- Point Definition -------------------
 struct Point {
     std::vector<double> items;
@@ -366,6 +385,7 @@ void kMeansMPI(std::vector<Point>& allPoints, int k, int epochs, int rank, int s
     }
     if (rank == 0) {
         std::cout << "Wrote clustered data to output_mpi.csv\n";
+        compareFiles("data/output.csv", "data/output_mpi.csv");
     }
     
 }
