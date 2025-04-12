@@ -6,67 +6,8 @@
 #include <numeric>
 #include <algorithm>
 #include <random>
+#include "utils.h"
 
-// Define structure Point with all attributes
-struct Point {
-    std::vector<double> items;    // coordinates
-    int cluster;     // no default cluster
-    double minDist;  // default infinite dist to nearest cluster
-        
-    Point(std::vector<double> items) : 
-        items(items),
-        cluster(-1),
-        minDist(__DBL_MAX__) {}
-
-    double distance(Point *p) {
-        double sumDistance = 0;
-        for (int i = 0; i < items.size(); i++) {
-            sumDistance += (p->items.at(i) - items.at(i)) * (p->items.at(i) - items.at(i));
-        }
-        return sumDistance;
-    }
-};
-
-std::vector<Point> readCSV(std::string filename) {
-    std::vector<Point> csvVector;
-
-    std::ifstream csvFile(filename);
-    if (!csvFile.is_open()) {
-        std::cerr << "Error opening file: " << filename << std::endl;
-        return csvVector;
-    }
-
-    std::string line;
-
-    // Skip header line if present
-    std::getline(csvFile, line);
-
-    while (std::getline(csvFile, line)) {
-        std::stringstream ss(line);
-        std::string token;
-        std::vector<double> items;
-
-        int col = 0;
-        while (std::getline(ss, token, ',')) {
-            if (col >= 9 && col < 20) { // extract columns 9–19
-                try {
-                    items.push_back(std::stod(token));
-                } catch (...) {
-                    items.clear();
-                    break;
-                }
-            }
-            ++col;
-        }
-
-        if (!items.empty()) {
-            csvVector.push_back(Point(items));
-        }
-    }
-
-    csvFile.close();
-    return csvVector;
-}
 
 void kMeans(std::vector<Point>* points, int epochs, int k) {
 
@@ -131,26 +72,6 @@ void kMeans(std::vector<Point>* points, int epochs, int k) {
             
         }
     }
-}
-
-void writeToCSV(std::vector<Point>* points, std::string filename) {
-
-    constexpr int START_COL = 9;
-    constexpr int END_COL = 20;
-
-    std::ofstream myFile;
-    myFile.open(filename);
-
-    myFile << "danceability,energy,key,loudness,mode,speechiness,acousticness,instrumentalness,liveness,valence,tempo,cluster" << std::endl;
-
-    for (std::vector<Point>::iterator it = points->begin(); it != points->end(); ++it) {
-        std::vector<double> items = it->items;
-        for (int i = 0; i < items.size(); ++i) {
-            myFile << items.at(i) << ",";
-        }
-        myFile << it->cluster << std::endl;
-    }
-    myFile.close();
 }
 
 int main() {

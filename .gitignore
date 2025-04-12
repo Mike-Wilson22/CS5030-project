@@ -33,6 +33,7 @@
 serial
 openMP
 MPI
+serial_normalized
 
 # vs code task execution
 *.vscode
