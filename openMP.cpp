@@ -23,47 +23,47 @@ void kMeans(std::vector<Point>* points, int epochs, int k, int thread_num) {
     
     // Run kmeans algorithm
     for (int x = 0; x < epochs; ++x) {
+        std::vector<std::vector<double>> sums;
+        int nPoints[k] = {0};
 
-        // Assign all points to initial clusters
-        #pragma omp parallel for num_threads(thread_num)
-        for (int j = 0; j < points->size(); ++j) {
-            Point* p = &(points->at(j));
-            p->minDist = __DBL_MAX__;  // Reset before checking
-            for (int i = 0; i < k; ++i) {
-                double dist = centroids.at(i).distance(p);
-                if (dist < p->minDist) {
-                    p->minDist = dist;
-                    p->cluster = i;
+        # pragma omp parallel num_threads(thread_num)
+        {
+            // Assign all points to initial clusters
+            #pragma omp for
+            for (int j = 0; j < points->size(); ++j) {
+                Point* p = &(points->at(j));
+                p->minDist = __DBL_MAX__;  // Reset before checking
+                for (int i = 0; i < k; ++i) {
+                    double dist = centroids.at(i).distance(p);
+                    if (dist < p->minDist) {
+                        p->minDist = dist;
+                        p->cluster = i;
+                    }
                 }
             }
-        }
+                    
+
+            #pragma omp for
+            for (int j = 0; j < points->at(0).items.size(); ++j) {
+                std::vector<double> sum;
+                for (int x = 0; x < k; ++x) {
+                    sum.push_back(0.0);
+                }
+                #pragma omp critical
+                {
+                    sums.push_back(sum);
+                }
+            }
+
+            #pragma omp for
+            for (int i = 0; i < sums.size(); ++i) {
+                for (int j = 0; j < points->size(); ++j) {
+                    sums[i][points->at(j).cluster] += points->at(j).items.at(i);
+                }
+            }
     
-        // Initialize vectors to help with calculating means
-        std::vector<std::vector<double>> sums;
-
-        #pragma omp parallel for num_threads(thread_num)
-        for (int j = 0; j < points->at(0).items.size(); ++j) {
-            std::vector<double> sum;
-            for (int x = 0; x < k; ++x) {
-                sum.push_back(0.0);
-            }
-            #pragma omp critical
-            {
-                sums.push_back(sum);
-            }
-        }
-
-        #pragma omp parallel for num_threads(thread_num)
-        for (int i = 0; i < sums.size(); ++i) {
-            for (int j = 0; j < points->size(); ++j) {
-                sums[i][points->at(j).cluster] += points->at(j).items.at(i);
-            }
-        }
-
-        int nPoints[k] = {0};
-        #pragma omp parallel num_threads(thread_num)
-        {
             int nPointsOMP[k] = {0};
+            #pragma omp barrier
             #pragma omp for
             for (int i = 0; i < points->size(); ++i) {
                 nPointsOMP[points->at(i).cluster]++;
@@ -76,16 +76,18 @@ void kMeans(std::vector<Point>* points, int epochs, int k, int thread_num) {
                     nPoints[i] += nPointsOMP[i];
                 }
             }
-        }
-    
-        // Find mean of all points
-        #pragma omp parallel for num_threads(thread_num)
-        for (int i = 0; i < centroids.size(); ++i) {
-            if (nPoints[i] == 0) continue;
-            for (int j = 0; j < sums.size(); ++j) {
-                centroids.at(i).items.at(j) = sums[j][i] / nPoints[i];
-            }
             
+            // Find mean of all points
+            #pragma omp barrier
+            #pragma omp for
+            for (int i = 0; i < centroids.size(); ++i) {
+                if (nPoints[i] == 0) continue;
+                for (int j = 0; j < sums.size(); ++j) {
+                    centroids.at(i).items.at(j) = sums[j][i] / nPoints[i];
+                }
+                
+            }
+
         }
     }
 }
