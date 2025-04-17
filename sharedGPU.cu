@@ -44,9 +44,10 @@ void kMeans(std::vector<Point>* points, int epochs, int k, int thread_num) {
     }
     
     int size = points->size();
-    Point pointsArray[size];
-    std::copy(points->begin(), points->end(), pointsArray);
-    Point* pointsPointer = pointsArray;
+    // Use a vector instead of variable length array, that way it uses heap memory not stack memory
+    // Point pointsArray[size];
+    std::vector<Point> pointsArray(points->begin(), points->end());
+    Point* pointsPointer = pointsArray.data();
 
     Point pointsCentroid[centroids.size()];
     std::copy(centroids.begin(), centroids.end(), pointsCentroid);
@@ -88,7 +89,17 @@ void kMeans(std::vector<Point>* points, int epochs, int k, int thread_num) {
 
         cudaMemcpy(d_points, pointsPointer, size * sizeof(Point), cudaMemcpyHostToDevice);
 
-        assignPoints<<<ceil(size/256), 256>>>(d_points, d_centroids, d_k, d_size);
+        // assignPoints<<<ceil(size/256), 256>>>(d_points, d_centroids, d_k, d_size);
+        int blockSize = 256;
+        int numBlocks = (size + blockSize - 1) / blockSize;
+        assignPoints<<<numBlocks, blockSize>>>(d_points, d_centroids, d_k, d_size);
+        //Just finished kernal call. Check for errors, sync.
+        cudaDeviceSynchronize();
+        cudaError_t err = cudaGetLastError();
+        if (err != cudaSuccess) {
+            std::cerr << "CUDA Error: " << cudaGetErrorString(err) << std::endl;
+        }
+
 
         cudaMemcpy(pointsPointer, d_points, size * sizeof(Point), cudaMemcpyDeviceToHost);
 
