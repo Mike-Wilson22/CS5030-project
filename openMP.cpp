@@ -28,6 +28,8 @@ void kMeans(std::vector<Point>* points, int epochs, int k, int thread_num) {
 
         # pragma omp parallel num_threads(thread_num)
         {
+            int nPointsOMP[k] = {0};
+
             // Assign all points to initial clusters
             #pragma omp for
             for (int j = 0; j < points->size(); ++j) {
@@ -62,8 +64,6 @@ void kMeans(std::vector<Point>* points, int epochs, int k, int thread_num) {
                 }
             }
     
-            int nPointsOMP[k] = {0};
-            #pragma omp barrier
             #pragma omp for
             for (int i = 0; i < points->size(); ++i) {
                 nPointsOMP[points->at(i).cluster]++;

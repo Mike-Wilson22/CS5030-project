@@ -133,20 +133,20 @@ std::vector<Point> readCSVNormalized(std::string filename) {
 
         int col = 0;
         while (std::getline(ss, token, ',')) {
-            if (col >= 9 && col < 20) { // extract columns 9–19
+            if (col >= START_COL && col < END_COL) { // extract columns 9–19
                 try {
-                    double newItem = std::stod(token);
-                    newItem = (newItem - mins[col-9]) / (maxes[col-9] - mins[col-9]);
-                    items.push_back(newItem);
+                    items.push_back(std::stod(token));
+                    ++col;
                 } catch (...) {
                     items.clear();
-                    break;
+                    col = START_COL;
                 }
+            } else {
+                ++col;
             }
-            ++col;
         }
 
-        if (!items.empty()) {
+        if (items.size() == END_COL-START_COL) {
             csvVector.push_back(Point(items));
         }
     }

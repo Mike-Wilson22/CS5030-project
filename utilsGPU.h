@@ -68,9 +68,7 @@ std::vector<Point> readCSV(std::string filename) {
             }
         }
 
-        // if (!items.empty()) {
         csvVector.push_back(Point(items));
-        // }
     }
 
     csvFile.close();
