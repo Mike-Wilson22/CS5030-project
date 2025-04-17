@@ -80,7 +80,9 @@ int main() {
     if (points.empty()) {
         std::cerr << "Error: No points loaded from CSV." << std::endl;
         return 1;
-    }    
+    }
+
+    int x = points.size();
 
     kMeans(&points, 5, 5);
 
