@@ -5,7 +5,7 @@
 #include <sstream>
 #include <cstring>
 #define ITEM_NUM 11
-#define DATA_NUM 861552
+#define DATA_NUM 1204025
 #define START_COL 9
 #define END_COL 20
 

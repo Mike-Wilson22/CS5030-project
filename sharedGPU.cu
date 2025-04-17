@@ -43,19 +43,11 @@ void kMeans(std::vector<Point>* points, int epochs, int k, int thread_num) {
         centroids.push_back(Point(points->at(indices[i]).items));
     }
     
-<<<<<<< HEAD
     int size = DATA_NUM;
     Point pointsArray[DATA_NUM];
     std::cout << "size: " << points->size() << std::endl;
     std::copy(points->begin(), points->end(), pointsArray);
     Point* pointsPointer = pointsArray;
-=======
-    int size = points->size();
-    // Use a vector instead of variable length array, that way it uses heap memory not stack memory
-    // Point pointsArray[size];
-    std::vector<Point> pointsArray(points->begin(), points->end());
-    Point* pointsPointer = pointsArray.data();
->>>>>>> 96e8d6a013ae2598e688b6967e33659347e1f9b9
 
     std::cout << "size: " << centroids.size() << std::endl;
     Point pointsCentroid[5];
