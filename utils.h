@@ -3,6 +3,8 @@
 #include <fstream>
 #include <iostream>
 #include <sstream>
+#define START_COL 9
+#define END_COL 20
 
 // Define structure Point with all attributes
 struct Point {
@@ -50,20 +52,20 @@ std::vector<Point> readCSV(std::string filename) {
 
         int col = 0;
         while (std::getline(ss, token, ',')) {
-            if (col >= 9 && col < 20) { // extract columns 9–19
+            if (col >= START_COL && col < END_COL) { // extract columns 9–19
                 try {
                     items.push_back(std::stod(token));
                     ++col;
                 } catch (...) {
                     items.clear();
-                    col = 9;
+                    col = START_COL;
                 }
             } else {
                 ++col;
             }
         }
 
-        if (items.size() == 11) {
+        if (items.size() == END_COL-START_COL) {
             csvVector.push_back(Point(items));
         }
     }
@@ -73,9 +75,6 @@ std::vector<Point> readCSV(std::string filename) {
 }
 
 void writeToCSV(std::vector<Point>* points, std::string filename) {
-
-    constexpr int START_COL = 9;
-    constexpr int END_COL = 20;
 
     std::ofstream myFile;
     myFile.open(filename);

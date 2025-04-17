@@ -6,6 +6,8 @@
 #include <cstring>
 #define ITEM_NUM 11
 #define DATA_NUM 861552
+#define START_COL 9
+#define END_COL 20
 
 // Define structure Point with all attributes
 struct Point {
@@ -54,12 +56,12 @@ std::vector<Point> readCSV(std::string filename) {
 
         int col = 0;
         while (std::getline(ss, token, ',')) {
-            if (col >= 9 && col < 20) { // extract columns 9–19
+            if (col >= START_COL && col < END_COL) { // extract columns 9–19
                 try {
-                    items[col-9] = std::stod(token);
+                    items[col-START_COL] = std::stod(token);
                     ++col;
                 } catch (...) {
-                    col = 9;
+                    col = START_COL;
                 }
             } else {
                 ++col;
@@ -76,9 +78,6 @@ std::vector<Point> readCSV(std::string filename) {
 }
 
 void writeToCSV(std::vector<Point>* points, std::string filename) {
-
-    constexpr int START_COL = 9;
-    constexpr int END_COL = 20;
 
     std::ofstream myFile;
     myFile.open(filename);
