@@ -19,8 +19,8 @@ void assignPoints(Point* points, Point* centroids, int* k, int* length) {
         for (int i = 0; i < *k; ++i) {
             double dist = 0;
             Point* c = &(centroids[i]);
-            for (int i = 0; i < 11; i++) {
-                dist += (c->items[i] - p->items[i]) * (c->items[i] - p->items[i]);
+            for (int j = 0; j < 11; i++) {
+                dist += (c->items[j] - p->items[j]) * (c->items[j] - p->items[j]);
             }
             // double dist = centroids[i].distance(p);
             if (dist < p->minDist) {
@@ -43,18 +43,20 @@ void kMeans(std::vector<Point>* points, int epochs, int k, int thread_num) {
         centroids.push_back(Point(points->at(indices[i]).items));
     }
     
-    int size = points->size();
-    Point pointsArray[size];
+    int size = DATA_NUM;
+    Point pointsArray[DATA_NUM];
+    std::cout << "size: " << points->size() << std::endl;
     std::copy(points->begin(), points->end(), pointsArray);
     Point* pointsPointer = pointsArray;
 
-    Point pointsCentroid[centroids.size()];
+    std::cout << "size: " << centroids.size() << std::endl;
+    Point pointsCentroid[5];
     std::copy(centroids.begin(), centroids.end(), pointsCentroid);
     Point* centroidPointer = pointsCentroid;
     
     
     Point *d_points;
-    cudaMalloc((void **)&d_points, size * sizeof(Point));
+    cudaMalloc((void **)&d_points, DATA_NUM * sizeof(Point));
 
     Point *d_centroids;
     cudaMalloc((void **)&d_centroids, centroids.size() * sizeof(Point));
@@ -62,7 +64,7 @@ void kMeans(std::vector<Point>* points, int epochs, int k, int thread_num) {
     int *d_k, *d_size;
     cudaMalloc((void **)&d_k, sizeof(int));
     cudaMalloc((void **)&d_size, sizeof(int));
-    cudaMemcpy(d_centroids, centroidPointer, centroids.size() * sizeof(Point), cudaMemcpyHostToDevice);
+    
 
     cudaMemcpy(d_k, &k, sizeof(int), cudaMemcpyHostToDevice);
     cudaMemcpy(d_size, &size, sizeof(int), cudaMemcpyHostToDevice);
@@ -85,12 +87,12 @@ void kMeans(std::vector<Point>* points, int epochs, int k, int thread_num) {
 
         // Setup data for GPU
 
+        cudaMemcpy(d_centroids, centroidPointer, centroids.size() * sizeof(Point), cudaMemcpyHostToDevice);
+        cudaMemcpy(d_points, pointsPointer, DATA_NUM * sizeof(Point), cudaMemcpyHostToDevice);
 
-        cudaMemcpy(d_points, pointsPointer, size * sizeof(Point), cudaMemcpyHostToDevice);
+        assignPoints<<<ceil(DATA_NUM/256), 256>>>(d_points, d_centroids, d_k, d_size);
 
-        assignPoints<<<ceil(size/256), 256>>>(d_points, d_centroids, d_k, d_size);
-
-        cudaMemcpy(pointsPointer, d_points, size * sizeof(Point), cudaMemcpyDeviceToHost);
+        cudaMemcpy(pointsPointer, d_points, DATA_NUM * sizeof(Point), cudaMemcpyDeviceToHost);
 
         // cudaMemcpy()
         
@@ -142,6 +144,9 @@ void kMeans(std::vector<Point>* points, int epochs, int k, int thread_num) {
             }
             
         }
+    }
+    for (int i = 0; i < DATA_NUM; i++) {
+        points->at(i) = pointsArray[i];
     }
     cudaFree(d_points);
     cudaFree(d_centroids);

@@ -5,6 +5,7 @@
 #include <sstream>
 #include <cstring>
 #define ITEM_NUM 11
+#define DATA_NUM 861552
 
 // Define structure Point with all attributes
 struct Point {
@@ -56,12 +57,13 @@ std::vector<Point> readCSV(std::string filename) {
             if (col >= 9 && col < 20) { // extract columns 9–19
                 try {
                     items[col-9] = std::stod(token);
+                    ++col;
                 } catch (...) {
-                    // items.clear();
-                    break;
+                    col = 9;
                 }
+            } else {
+                ++col;
             }
-            ++col;
         }
 
         // if (!items.empty()) {

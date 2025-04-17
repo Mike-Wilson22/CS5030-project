@@ -53,15 +53,17 @@ std::vector<Point> readCSV(std::string filename) {
             if (col >= 9 && col < 20) { // extract columns 9–19
                 try {
                     items.push_back(std::stod(token));
+                    ++col;
                 } catch (...) {
                     items.clear();
-                    break;
+                    col = 9;
                 }
+            } else {
+                ++col;
             }
-            ++col;
         }
 
-        if (!items.empty()) {
+        if (items.size() == 11) {
             csvVector.push_back(Point(items));
         }
     }
