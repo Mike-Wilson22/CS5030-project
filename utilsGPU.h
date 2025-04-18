@@ -173,11 +173,11 @@ Point* readCSVNormalized(std::string filename) {
             if (col >= START_COL && col < END_COL) { // extract columns 9–19
                 try {
                     double newItem = std::stod(token);
-                    nnewItem = (newItem - means[col-START_COL]) / stdDevs[col-START_COL];
+                    newItem = (newItem - means[col-START_COL]) / stdDevs[col-START_COL];
                     items[col-START_COL] = newItem;
                     ++col;
                 } catch (...) {
-                    col = START_COL
+                    col = START_COL;
                 }
             } else {
                 ++col;

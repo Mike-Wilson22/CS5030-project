@@ -151,8 +151,7 @@ void zNormalization(std::vector<Point>* points) {
 
 // Normalized read
 std::vector<Point> readCSVNormalized(std::string filename) {
-    // std::vector<double> maxes = {0.833, 0.978, 11, 2.225e-308, 1, 0.483, 0.562, 0.34, 0.623, 0.974, 172.848};
-    // std::vector<double> mins = {0.277, 0.533, 0, -9.563, 0, 0, 0, 0.0247, 0.174, 83.371};
+
     std::vector<double> stdDevs = {0.18967, 0.29468, 3.5367, 6.982, 0.46968, 0.11599, 0.3852, 0.37628, 0.18046, 0.27048, 30.937};
     std::vector<double> means = {0.493, 0.5095, 5.194, -11.8087, 0.6715, 0.08438, 0.44675, 0.28286, 0.201599, 0.42799, 117.63435};
     std::vector<Point> csvVector;
@@ -178,7 +177,6 @@ std::vector<Point> readCSVNormalized(std::string filename) {
             if (col >= START_COL && col < END_COL) { // extract columns 9–19
                 try {
                     double newItem = std::stod(token);
-                    // newItem = (newItem - mins[col-START_COL]) / (maxes[col-START_COL] - mins[col-START_COL]);
                     newItem = (newItem - means[col-START_COL]) / stdDevs[col-START_COL];
                     items.push_back(newItem);
                     ++col;

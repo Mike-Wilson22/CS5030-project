@@ -77,7 +77,7 @@ void kMeans(Point* pointsArray, int epochs, int k, int thread_num) {
     cudaMalloc((void **)&d_k, sizeof(int));
     cudaMalloc((void **)&d_size, sizeof(int));
     
-    int blockSize = 256;
+    int blockSize = 16;
     int numBlocks = (size + blockSize - 1) / blockSize;
     
     cudaMemcpy(d_k, &k, sizeof(int), cudaMemcpyHostToDevice);
@@ -138,13 +138,42 @@ void kMeans(Point* pointsArray, int epochs, int k, int thread_num) {
 int main() {
     
     Point* points = readCSVNormalized("data/tracks_features.csv");
-    
-    std::cout << "Started kmeans " << std::endl;
+        
+    // for (int i = 0; i < 3; i++) {
+    //     std::cout << "Start" << std::endl;
+    //     auto start2 = startTimerCPU();
+    //     auto start = startTimerWall();
+        
+        
+    //     endTimerWall(start);
+    //     endTimerCPU(start2);
+    // }
+
     kMeans(points, 5, K_CLUSTERS, 5);
-    std::cout << "Finished kmeans " << std::endl;
+    
     writeToCSV(points, "data/output_gpu.csv");
 
     compareFiles("data/output_normalized.csv", "data/output_gpu.csv");
     
     return 0;
 }
+
+// First execution is notably slower then others--this may be due to memory loading onto GPU?
+
+// Time taken to run (wall clock): [1.587205, 1.824759, 1.607862] seconds (block size 512 threads)
+// Time taken to run (cpu clock): [1.58146, 1.59184, 1.59481] seconds (block size 512 threads)
+
+// Time taken to run (wall clock): [1.613788, 1.631238, 1.620053] seconds (block size 256 threads)
+// Time taken to run (cpu clock): [1.60671, 1.62136, 1.60614] seconds (block size 256 threads)
+
+// Time taken to run (wall clock): [1.603406, 1.630459, 1.605275] seconds (block size 128 threads)
+// Time taken to run (cpu clock): [1.59254, 1.62097, 1.59973] seconds (block size 128 threads)
+
+// Time taken to run (wall clock): [1.607722, 1.459259, 1.469630] seconds (block size 64 threads)
+// Time taken to run (cpu clock): [1.56956, 1.45311, 1.46486] seconds (block size 64 threads)
+
+// Time taken to run (wall clock): [0.536088, 0.530974, 0.531105] seconds (block size 32 threads)
+// Time taken to run (cpu clock): [0.532402, 0.527215, 0.526539] seconds (block size 32 threads)
+
+// Time taken to run (wall clock): [0.719224, 0.721331, 0.711376] seconds (block size 16 threads)
+// Time taken to run (cpu clock): [0.715885, 0.71655, 0.709268] seconds (block size 16 threads)

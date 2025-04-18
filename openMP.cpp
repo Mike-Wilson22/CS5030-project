@@ -101,17 +101,17 @@ int main() {
         return 1;
     }
 
-    for (int i = 0; i < 3; i++) {
-        std::cout << "Start" << std::endl;
-        // auto start = startTimerWall();
-        auto start = startTimerCPU();
+    // for (int i = 0; i < 3; i++) {
+    //     std::cout << "Start" << std::endl;
+    //     // auto start = startTimerWall();
+    //     auto start = startTimerCPU();
         
-        kMeans(&points, 5, 5, 6);
         
-        // endTimerWall(start);
-        endTimerCPU(start);
-    }
-
+    //     // endTimerWall(start);
+    //     endTimerCPU(start);
+    // }
+    
+    kMeans(&points, 5, 5, 6);
 
     writeToCSV(&points, "data/output_omp.csv");
 
