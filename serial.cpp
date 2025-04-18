@@ -76,17 +76,28 @@ void kMeans(std::vector<Point>* points, int epochs, int k) {
 
 int main() {
 
-    std::vector<Point> points = readCSV("data/tracks_features.csv");
+    std::vector<Point> points = readCSVNormalized("data/tracks_features.csv");
     if (points.empty()) {
         std::cerr << "Error: No points loaded from CSV." << std::endl;
         return 1;
     }
 
-    int x = points.size();
+    // for (int i = 0; i < 3; i++) {
+    //     std::cout << "Start" << std::endl;
+    //     // auto start = startTimerWall();
+    //     auto start = startTimerCPU();
+        
+        
+    //     // endTimerWall(start);
+    //     endTimerCPU(start);
+    // }
 
     kMeans(&points, 5, 5);
 
-    writeToCSV(&points, "data/output.csv");
+    writeToCSV(&points, "data/output_normalized.csv");
     
     return 0;
 }
+
+// Time taken to run (wall clock): [6.301945, 6.497803, 6.248677] seconds
+// Time taken to run (cpu clock): [6.03905, 6.32447, 6.07314] seconds

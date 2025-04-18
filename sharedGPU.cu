@@ -57,7 +57,7 @@ void kMeans(Point* pointsArray, int epochs, int k, int thread_num) {
 
     // Declare arrays for points and centroids
     int size = DATA_NUM;
-        
+
     double sums[ITEM_NUM][K_CLUSTERS] = {0.0};
 
     // Declare all GPU memory structures
@@ -137,16 +137,14 @@ void kMeans(Point* pointsArray, int epochs, int k, int thread_num) {
 
 int main() {
     
-    Point* points = readCSV("data/tracks_features.csv");
+    Point* points = readCSVNormalized("data/tracks_features.csv");
     
     std::cout << "Started kmeans " << std::endl;
     kMeans(points, 5, K_CLUSTERS, 5);
     std::cout << "Finished kmeans " << std::endl;
     writeToCSV(points, "data/output_gpu.csv");
 
-    compareFiles("data/output.csv", "data/output_gpu.csv");
-
-    free(points);
+    compareFiles("data/output_normalized.csv", "data/output_gpu.csv");
     
     return 0;
 }

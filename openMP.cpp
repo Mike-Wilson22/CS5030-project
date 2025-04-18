@@ -95,17 +95,57 @@ void kMeans(std::vector<Point>* points, int epochs, int k, int thread_num) {
 
 int main() {
 
-    std::vector<Point> points = readCSV("data/tracks_features.csv");
+    std::vector<Point> points = readCSVNormalized("data/tracks_features.csv");
     if (points.empty()) {
         std::cerr << "Error: No points loaded from CSV." << std::endl;
         return 1;
-    }    
+    }
 
-    kMeans(&points, 5, 5, 5);
+    for (int i = 0; i < 3; i++) {
+        std::cout << "Start" << std::endl;
+        // auto start = startTimerWall();
+        auto start = startTimerCPU();
+        
+        kMeans(&points, 5, 5, 6);
+        
+        // endTimerWall(start);
+        endTimerCPU(start);
+    }
+
 
     writeToCSV(&points, "data/output_omp.csv");
 
-    compareFiles("data/output.csv", "data/output_omp.csv");
+    compareFiles("data/output_normalized.csv", "data/output_omp.csv");
     
     return 0;
 }
+
+// Time taken to run (wall clock): [0.870513, 0.900094, 0.826877] seconds (16 threads)
+// Time taken to run (cpu clock): [10.0785, 10.1108, 10.2722] seconds (16 threads)
+
+// Time taken to run (wall clock): [0.922001, 0.890765, 0.907381] seconds (12 threads)
+// Time taken to run (cpu clock): [8.62534, 8.77614, 8.59452] seconds (12 threads)
+
+// Time taken to run (wall clock): [1.213842, 1.165172, 1.190828] seconds (8 threads)
+// Time taken to run (cpu clock): [7.35951, 7.39602, 7.31576] seconds (8 threads)
+
+// Time taken to run (wall clock): [1.286735, 1.293697, 1.263102] seconds (7 threads)
+// Time taken to run (cpu clock): [7.04313, 7.01414, 7.09844] seconds (7 threads)
+
+// Time taken to run (wall clock): [1.283129, 1.257047, 1.225724] seconds (6 threads)
+// Time taken to run (cpu clock): [6.83241, 6.68872, 6.78144] seconds (6 threads)
+
+// Time taken to run (wall clock): [1.442557, 1.446394, 1.465262, 1.510413] seconds (5 threads)
+// Time taken to run (cpu clock): [6.86311, 6.77139, 6.86061] seconds (5 threads)
+
+// Time taken to run (wall clock): [1.768315, 1.746593, 1.765074] seconds (4 threads)
+// Time taken to run (cpu clock): [6.70337, 6.67672, 6.63795] seconds (4 threads)
+
+// Time taken to run (wall clock): [2.298171 2.299603 2.276771] seconds (3 threads)
+// Time taken to run (cpu clock): [6.67818, 6.66136, 6.69502] seconds (3 threads)
+
+// Time taken to run (wall clock): [3.308685, 3.353846, 3.371353] seconds (2 threads)
+// Time taken to run (cpu clock): [6.56306, 6.5333, 6.52815] seconds (2 threads)
+
+// Time taken to run (wall clock): [6.514394, 6.601567, 6.590459] seconds (1 thread)
+// Time taken to run (cpu clock): [6.58683, 6.55377, 6.57335] seconds (1 thread)
