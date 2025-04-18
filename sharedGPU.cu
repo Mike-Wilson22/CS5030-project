@@ -1,18 +1,17 @@
 #include <vector>
 #include <string>
-#include <fstream>
 #include <iostream>
-#include <sstream>
 #include <numeric>
 #include <algorithm>
 #include <random>
-// #include <omp.h>
+#include <omp.h>
+#include <stdexcept>
 #include <cuda_runtime.h>
 #include "utilsGPU.h"
 #define K_CLUSTERS 5
 
 __global__
-void assignPoints(Point* points, Point* centroids, int* k, int* length) {
+void assignPoints(Point* points, Point* centroids, double* sums, int* nPoints, int* k, int* length) {
     int index = blockIdx.x * blockDim.x + threadIdx.x;
     if (index < *length) {
         Point* p = &(points[index]);
@@ -23,169 +22,131 @@ void assignPoints(Point* points, Point* centroids, int* k, int* length) {
             for (int j = 0; j < 11; j++) {
                 dist += (c->items[j] - p->items[j]) * (c->items[j] - p->items[j]);
             }
-            // double dist = centroids[i].distance(p);
+
             if (dist < p->minDist) {
                 p->minDist = dist;
                 p->cluster = i;
             }
         }
+
+        // Technically second for loop
+        int cluster = p->cluster;
+        for (int i = 0; i < ITEM_NUM; ++i) {
+            double value = p->items[i];
+            int sumIndex = i * K_CLUSTERS + cluster;
+            atomicAdd(&sums[sumIndex], value);
+        }
+        atomicAdd(&nPoints[cluster], 1);
+        p->minDist = __DBL_MAX__;
     }
 }
 
-void kMeans(std::vector<Point>* points, int epochs, int k, int thread_num) {
+
+void kMeans(Point* pointsArray, int epochs, int k, int thread_num) {
 
     // Initialize centroids
-    std::vector<Point> centroids;
-    std::vector<int> indices(points->size());
+    Point pointsCentroid[K_CLUSTERS];
+
+    std::vector<int> indices(DATA_NUM);
     std::iota(indices.begin(), indices.end(), 0);
     std::shuffle(indices.begin(), indices.end(), std::default_random_engine(100));
     
     for (int i = 0; i < k; ++i) {
-        centroids.push_back(Point(points->at(indices[i]).items));
+        pointsCentroid[i] = Point(pointsArray[indices[i]].items);
     }
-    
-    int size = DATA_NUM;
-    Point pointsArray[DATA_NUM];
-    std::cout << "size: " << points->size() << std::endl;
-    std::copy(points->begin(), points->end(), pointsArray);
-    Point* pointsPointer = pointsArray;
 
-    Point pointsCentroid[5];
-    std::copy(centroids.begin(), centroids.end(), pointsCentroid);
-    Point* centroidPointer = pointsCentroid;
-    
+    // Declare arrays for points and centroids
+    int size = DATA_NUM;
+        
+    double sums[ITEM_NUM][K_CLUSTERS] = {0.0};
+
+    // Declare all GPU memory structures
+    double *d_sums;
+    cudaMalloc((void **)&d_sums, ITEM_NUM * K_CLUSTERS * sizeof(double));
     
     Point *d_points;
     cudaMalloc((void **)&d_points, DATA_NUM * sizeof(Point));
-
+    
     Point *d_centroids;
-    cudaMalloc((void **)&d_centroids, centroids.size() * sizeof(Point));
-
+    cudaMalloc((void **)&d_centroids, K_CLUSTERS * sizeof(Point));
+    
+    int *d_nPoints;
+    cudaMalloc((void **)&d_nPoints, K_CLUSTERS * sizeof(int));
+    
     int *d_k, *d_size;
     cudaMalloc((void **)&d_k, sizeof(int));
     cudaMalloc((void **)&d_size, sizeof(int));
     
-
+    int blockSize = 256;
+    int numBlocks = (size + blockSize - 1) / blockSize;
+    
     cudaMemcpy(d_k, &k, sizeof(int), cudaMemcpyHostToDevice);
     cudaMemcpy(d_size, &size, sizeof(int), cudaMemcpyHostToDevice);
+    cudaMemcpy(d_points, pointsArray, DATA_NUM * sizeof(Point), cudaMemcpyHostToDevice);
+    
     // Run kmeans algorithm
     for (int x = 0; x < epochs; ++x) {
 
-        // Assign all points to initial clusters
-        // #pragma omp parallel for num_threads(thread_num)
-        // for (int j = 0; j < points->size(); ++j) {
-        //     Point* p = &(points->at(j));
-        //     p->minDist = __DBL_MAX__;  // Reset before checking
-        //     for (int i = 0; i < k; ++i) {
-        //         double dist = centroids.at(i).distance(p);
-        //         if (dist < p->minDist) {
-        //             p->minDist = dist;
-        //             p->cluster = i;
-        //         }
-        //     }
-        // }
+        int nPoints[K_CLUSTERS] = {0};
+        
+        // Fill sums array with zeroes (replaces second for loop)
+        std::fill(&sums[0][0], &sums[0][0] + ITEM_NUM * K_CLUSTERS, 0.0);
 
-        // Setup data for GPU
-        std::cout << "copying memory " << std::endl;
-        cudaMemcpy(d_centroids, centroidPointer, centroids.size() * sizeof(Point), cudaMemcpyHostToDevice);
-        cudaMemcpy(d_points, pointsPointer, DATA_NUM * sizeof(Point), cudaMemcpyHostToDevice);
+        // Update GPU memory structures
+        cudaMemcpy(d_centroids, pointsCentroid, K_CLUSTERS * sizeof(Point), cudaMemcpyHostToDevice);
+        cudaMemcpy(d_sums, &sums[0][0], ITEM_NUM * K_CLUSTERS * sizeof(double), cudaMemcpyHostToDevice);
+        cudaMemcpy(d_nPoints, nPoints, K_CLUSTERS * sizeof(int), cudaMemcpyHostToDevice);
 
-        std::cout << "calling kernel function " << std::endl;
-        // assignPoints<<<ceil(size/256), 256>>>(d_points, d_centroids, d_k, d_size);
-        int blockSize = 256;
-        int numBlocks = (size + blockSize - 1) / blockSize;
-        assignPoints<<<numBlocks, blockSize>>>(d_points, d_centroids, d_k, d_size);
+        assignPoints<<<numBlocks, blockSize>>>(d_points, d_centroids, d_sums, d_nPoints, d_k, d_size);
 
-        //Just finished kernel call. Check for errors, sync.
+        // Just finished kernel call. Check for errors, sync.
         cudaDeviceSynchronize();
         cudaError_t err = cudaGetLastError();
         if (err != cudaSuccess) {
             std::cerr << "CUDA Error: " << cudaGetErrorString(err) << std::endl;
         }
-
-        std::cout << "copying memory back " << std::endl;
-        cudaMemcpy(pointsPointer, d_points, DATA_NUM * sizeof(Point), cudaMemcpyDeviceToHost);
-
-        // cudaMemcpy()
         
-        // std::copy(points->begin(), points->end(), pointsArray);
-        
-        std::cout << "run omp stuff " << std::endl;
-        // Initialize vectors to help with calculating means
-        std::vector<std::vector<double>> sums;
-        
-        for (int j = 0; j < ITEM_NUM; ++j) {
-            std::vector<double> sum;
-            for (int x = 0; x < k; ++x) {
-                sum.push_back(0.0);
-            }
-            sums.push_back(sum);
-        }
-        
-        // #pragma omp parallel for num_threads(thread_num)
-        for (int i = 0; i < sums.size(); ++i) {
-            for (int j = 0; j < size; ++j) {
-                sums[i][pointsArray[j].cluster] += pointsArray[j].items[i];
-            }
-        }
-
-        for (int i = 0; i < sums.size(); ++i) {
-            for (int j = 0; j < size; ++j) {
-                sums[i][pointsArray[j].cluster] += pointsArray[j].items[i];
-            }
-        }
-        
-        int nPoints[K_CLUSTERS] = {0};
-        // #pragma omp parallel num_threads(thread_num)
-        {
-            // int nPointsOMP[k] = {0};
-            // #pragma omp for
-            for (int i = 0; i < points->size(); ++i) {
-                nPoints[pointsArray[i].cluster]++;
-                pointsArray[i].minDist = __DBL_MAX__;
-            }
-            
-            // #pragma omp critical
-            // {
-            //     for (int i = 0; i < k; ++i) {
-            //         nPoints[i] += nPointsOMP[i];
-            //     }
-            // }
-        }
-        
+        // Copy needed memory back to host
+        cudaMemcpy(&sums[0][0], d_sums, ITEM_NUM * K_CLUSTERS * sizeof(double), cudaMemcpyDeviceToHost);
+        cudaMemcpy(nPoints, d_nPoints, K_CLUSTERS * sizeof(int), cudaMemcpyDeviceToHost);
+                
         // Find mean of all points
-        // #pragma omp parallel for num_threads(thread_num)
-        for (int i = 0; i < centroids.size(); ++i) {
+        #pragma omp parallel for num_threads(thread_num)
+        for (int i = 0; i < K_CLUSTERS; ++i) {
             if (nPoints[i] == 0) continue;
-            for (int j = 0; j < sums.size(); ++j) {
-                centroids.at(i).items[j] = sums[j][i] / nPoints[i];
+            for (int j = 0; j < ITEM_NUM; ++j) {
+                pointsCentroid[i].items[j] = sums[j][i] / nPoints[i];
             }
             
         }
+        
     }
-    for (int i = 0; i < DATA_NUM; i++) {
-        points->at(i) = pointsArray[i];
-    }
+
+    // Copy points back to host, copy array back into vector
+    cudaMemcpy(pointsArray, d_points, DATA_NUM * sizeof(Point), cudaMemcpyDeviceToHost);
+
+    // Free all memory
     cudaFree(d_points);
     cudaFree(d_centroids);
     cudaFree(d_k);
     cudaFree(d_size);
+    cudaFree(d_sums);
+    cudaFree(d_nPoints);
 }
 
 
 int main() {
     
-    std::vector<Point> points = readCSV("data/tracks_features.csv");
-    if (points.empty()) {
-        std::cerr << "Error: No points loaded from CSV." << std::endl;
-        return 1;
-    }    
+    Point* points = readCSV("data/tracks_features.csv");
     
-    kMeans(&points, 5, 5, 5);
-    std::cout << "finished kmeans " << std::endl;
-    writeToCSV(&points, "data/output_gpu.csv");
+    std::cout << "Started kmeans " << std::endl;
+    kMeans(points, 5, K_CLUSTERS, 5);
+    std::cout << "Finished kmeans " << std::endl;
+    writeToCSV(points, "data/output_gpu.csv");
 
     compareFiles("data/output.csv", "data/output_gpu.csv");
+
+    free(points);
     
     return 0;
 }

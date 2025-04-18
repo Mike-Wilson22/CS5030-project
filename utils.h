@@ -32,6 +32,8 @@ struct Point {
 };
 
 std::vector<Point> readCSV(std::string filename) {
+    std::cout << "Reading file " << std::endl;
+
     std::vector<Point> csvVector;
 
     std::ifstream csvFile(filename);

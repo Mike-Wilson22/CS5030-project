@@ -35,8 +35,10 @@ struct Point {
     }
 };
 
-std::vector<Point> readCSV(std::string filename) {
-    std::vector<Point> csvVector;
+Point* readCSV(std::string filename) {
+    std::cout << "Reading file " << std::endl;
+    // std::vector<Point> csvVector;
+    Point* csvVector = new Point[DATA_NUM];
 
     std::ifstream csvFile(filename);
     if (!csvFile.is_open()) {
@@ -49,6 +51,7 @@ std::vector<Point> readCSV(std::string filename) {
     // Skip header line if present
     std::getline(csvFile, line);
 
+    int i = 0;
     while (std::getline(csvFile, line)) {
         std::stringstream ss(line);
         std::string token;
@@ -68,26 +71,27 @@ std::vector<Point> readCSV(std::string filename) {
             }
         }
 
-        csvVector.push_back(Point(items));
+        csvVector[i] = Point(items);
+        i++;
     }
 
     csvFile.close();
     return csvVector;
 }
 
-void writeToCSV(std::vector<Point>* points, std::string filename) {
+void writeToCSV(Point* points, std::string filename) {
 
     std::ofstream myFile;
     myFile.open(filename);
 
     myFile << "danceability,energy,key,loudness,mode,speechiness,acousticness,instrumentalness,liveness,valence,tempo,cluster" << std::endl;
 
-    for (std::vector<Point>::iterator it = points->begin(); it != points->end(); ++it) {
-        double* items = it->items;
-        for (int i = 0; i < ITEM_NUM; ++i) {
-            myFile << items[i] << ",";
+    for (int i = 0; i < DATA_NUM; i++) {
+        double* items = points[i].items;
+        for (int j = 0; j < ITEM_NUM; ++j) {
+            myFile << items[j] << ",";
         }
-        myFile << it->cluster << std::endl;
+        myFile << points[i].cluster << std::endl;
     }
     myFile.close();
 }
