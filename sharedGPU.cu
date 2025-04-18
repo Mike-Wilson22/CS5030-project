@@ -34,7 +34,7 @@ void assignPoints(Point* points, Point* centroids, int* k, int* length) {
 }
 
 __global__
-void sumItems(double *sums, Point* points, int* length) {
+void sumItems(double* sums, Point* points, int* nPoints, int* length) {
     int index = blockIdx.x * blockDim.x + threadIdx.x;
 
     if (index < *length) {
@@ -45,6 +45,8 @@ void sumItems(double *sums, Point* points, int* length) {
             int sumIndex = i * K_CLUSTERS + cluster;
             atomicAdd(&sums[sumIndex], value);
         }
+        atomicAdd(&nPoints[cluster], 1);
+        p->minDist = __DBL_MAX__;
     }
 }
 
@@ -71,98 +73,101 @@ void kMeans(std::vector<Point>* points, int epochs, int k, int thread_num) {
     std::cout << "size: " << points->size() << std::endl;
     std::copy(points->begin(), points->end(), pointsArray);
     Point* pointsPointer = pointsArray;
-
+    
     Point pointsCentroid[K_CLUSTERS];
     std::copy(centroids.begin(), centroids.end(), pointsCentroid);
     Point* centroidPointer = pointsCentroid;
-
+    
     double sums[ITEM_NUM][K_CLUSTERS] = {0.0};
 
+    int nPoints[k] = {0};
+    
     double *d_sums;
     cudaMalloc((void **)&d_sums, ITEM_NUM * K_CLUSTERS * sizeof(double));
     
     Point *d_points;
     cudaMalloc((void **)&d_points, DATA_NUM * sizeof(Point));
-
+    
     Point *d_centroids;
     cudaMalloc((void **)&d_centroids, centroids.size() * sizeof(Point));
 
+    int *d_nPoints;
+    cudaMalloc((void **)&d_nPoints, K_CLUSTERS * sizeof(int));
+    
     int *d_k, *d_size;
     cudaMalloc((void **)&d_k, sizeof(int));
     cudaMalloc((void **)&d_size, sizeof(int));
     
-
+    int blockSize = 256;
+    int numBlocks = (size + blockSize - 1) / blockSize;
+    
     cudaMemcpy(d_k, &k, sizeof(int), cudaMemcpyHostToDevice);
     cudaMemcpy(d_size, &size, sizeof(int), cudaMemcpyHostToDevice);
     // Run kmeans algorithm
     for (int x = 0; x < epochs; ++x) {
 
-        // Setup data for GPU
-        std::cout << "copying memory 1" << std::endl;
+        // ------- GPU implementation of first for loop (initialize clusters/distances) ---------
+        std::cout << "Calling kernel function 1" << std::endl;
+
         cudaMemcpy(d_centroids, centroidPointer, centroids.size() * sizeof(Point), cudaMemcpyHostToDevice);
         cudaMemcpy(d_points, pointsPointer, DATA_NUM * sizeof(Point), cudaMemcpyHostToDevice);
 
-
-        std::cout << "calling kernel function 1" << std::endl;
-
-        int blockSize = 256;
-        int numBlocks = (size + blockSize - 1) / blockSize;
         assignPoints<<<numBlocks, blockSize>>>(d_points, d_centroids, d_k, d_size);
 
-        //Just finished kernel call. Check for errors, sync.
+        // Just finished kernel call. Check for errors, sync.
         cudaDeviceSynchronize();
         cudaError_t err = cudaGetLastError();
         if (err != cudaSuccess) {
             std::cerr << "CUDA Error: " << cudaGetErrorString(err) << std::endl;
         }
 
-        std::cout << "copying memory back 1" << std::endl;
-        cudaMemcpy(pointsPointer, d_points, DATA_NUM * sizeof(Point), cudaMemcpyDeviceToHost);
-
-                
-        // Initialize vectors to help with calculating means        
+        std::cout << "Kernel function 1 finished" << std::endl;
+        
+        // Fill sums array with zeroes (replaces second for loop)
         std::fill(&sums[0][0], &sums[0][0] + ITEM_NUM * K_CLUSTERS, 0.0);
         
-
-        // Setup data for GPU
+        
+        // ------- GPU implementation of third for loop (initialize clusters/distances) ---------
         std::cout << "copying memory 2" << std::endl;
         cudaMemcpy(d_sums, &sums[0][0], ITEM_NUM * K_CLUSTERS * sizeof(double), cudaMemcpyHostToDevice);
-
+        cudaMemcpy(d_nPoints, nPoints, K_CLUSTERS * sizeof(int), cudaMemcpyHostToDevice);
+        
         std::cout << "calling kernel function 2" << std::endl;
-
-        sumItems<<<numBlocks, blockSize>>>(d_sums, d_points, d_size);
-
+        
+        sumItems<<<numBlocks, blockSize>>>(d_sums, d_points, d_nPoints, d_size);
+        
         //Just finished kernel call. Check for errors, sync.
         cudaDeviceSynchronize();
         err = cudaGetLastError();
         if (err != cudaSuccess) {
             std::cerr << "CUDA Error: " << cudaGetErrorString(err) << std::endl;
         }
-
+        
         std::cout << "copying memory back 2" << std::endl;
         cudaMemcpy(&sums[0][0], d_sums, ITEM_NUM * K_CLUSTERS * sizeof(double), cudaMemcpyDeviceToHost);
-
+        cudaMemcpy(nPoints, d_nPoints, K_CLUSTERS * sizeof(int), cudaMemcpyDeviceToHost);
+        
+        // Memory is still being edited, so it doesn't need to be copied back until after the last GPU function
+        cudaMemcpy(pointsPointer, d_points, DATA_NUM * sizeof(Point), cudaMemcpyDeviceToHost);
 
         
         // Due to this needing an array per thread, and it only
         // iterating over the points array once, it is not GPU parallelized
-        int nPoints[k] = {0};
-        #pragma omp parallel num_threads(thread_num)
-        {
-            int nPointsOMP[k] = {0};
-            #pragma omp for
-            for (int i = 0; i < points->size(); ++i) {
-                nPointsOMP[pointsArray[i].cluster]++;
-                pointsArray[i].minDist = __DBL_MAX__;
-            }
+        // #pragma omp parallel num_threads(thread_num)
+        // {
+        //     int nPointsOMP[k] = {0};
+        //     #pragma omp for
+        //     for (int i = 0; i < points->size(); ++i) {
+        //         nPointsOMP[pointsArray[i].cluster]++;
+        //     }
             
-            #pragma omp critical
-            {
-                for (int i = 0; i < k; ++i) {
-                    nPoints[i] += nPointsOMP[i];
-                }
-            }
-        }
+        //     #pragma omp critical
+        //     {
+        //         for (int i = 0; i < k; ++i) {
+        //             nPoints[i] += nPointsOMP[i];
+        //         }
+        //     }
+        // }
         
         // Find mean of all points
         #pragma omp parallel for num_threads(thread_num)
