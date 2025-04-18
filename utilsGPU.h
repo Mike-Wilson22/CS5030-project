@@ -96,6 +96,14 @@ void compareFiles(std::string filename, std::string filename2) {
     std::ifstream file1(filename);
     std::ifstream file2(filename2);
 
+    if (!file1.is_open()) {
+        std::cerr << "Error opening file: " << filename << std::endl;
+        return;
+    } else if (!file2.is_open()) {
+        std::cerr << "Error opening file: " << filename2 << std::endl;
+        return;
+    }
+
     std::string line1, line2;
     while(getline(file1, line1) && getline(file2, line2)) {
         if (line1 != line2) {
