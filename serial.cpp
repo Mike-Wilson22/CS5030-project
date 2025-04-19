@@ -94,8 +94,8 @@ int main() {
 
     kMeans(&points, 5, 5);
 
-    writeToCSV(&points, "data/output_normalized_chpc.csv");
-    compareFiles("data/output_normalized.csv", "data/output_normalized_chpc.csv");
+    writeToCSV(&points, "data/output_normalized.csv");
+    // compareFiles("data/output_normalized.csv", "data/output_normalized_chpc.csv");
     
     return 0;
 }
