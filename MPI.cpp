@@ -10,45 +10,9 @@
 #include <numeric>
 #include <algorithm>
 #include <random>
-
-// Compare output files (validate output)
-void compareFiles(std::string filename, std::string filename2) {
-    std::ifstream file1(filename);
-    std::ifstream file2(filename2);
-
-    std::string line1, line2;
-    while(getline(file1, line1) && getline(file2, line2)) {
-        if (line1 != line2) {
-            std::cout << "Files are not the same" <<std::endl;
-            return;
-        }
-    }
-
-    file1.close();
-    file2.close();
-
-    std::cout << "Files are the same" <<std::endl;
-}
-
-// ------------------- Point Definition -------------------
-struct Point {
-    std::vector<double> items;
-    int cluster;
-    double minDist;
-
-    Point(std::vector<double> items) : items(items), cluster(-1), minDist(DBL_MAX) {}
-
-    double distance(const Point& p) const {
-        double sum = 0;
-        for (size_t i = 0; i < items.size(); ++i) {
-            sum += (p.items[i] - items[i]) * (p.items[i] - items[i]);
-        }
-        return sum;
-    }
-};
+#include "utils.h" 
 
 //Helper functions for MPI
-
 
 std::vector<Point> initializeRandomCentroids(const std::vector<Point>& points, int k) {
     std::vector<int> indices(points.size());
@@ -61,8 +25,6 @@ std::vector<Point> initializeRandomCentroids(const std::vector<Point>& points, i
     }
     return centroids;
 }
-
-
 
 // ------------------- Broadcast Centroids to All Processes -------------------
 void broadcastCentroids(std::vector<Point>& centroids) {
@@ -96,7 +58,6 @@ void broadcastCentroids(std::vector<Point>& centroids) {
     }
 }
 
-
 //MPI_Scatter can't use a vector of Points. It needs doubles.
 std::vector<double> flattenPoints(const std::vector<Point>& points) {
     std::vector<double> flat;
@@ -114,7 +75,6 @@ std::vector<int> flattenClusters(const std::vector<Point>& points) {
     }
     return flat;
 }
-
 
 //Reconstruct the Points from the flattened versions.
 std::vector<Point> unflattenPoints(const std::vector<double>& flat, int dim) {
@@ -162,7 +122,6 @@ std::vector<Point> scatterPoints(std::vector<Point>& allPoints, int rank, int si
 
     return unflattenPoints(flatLocal, dim);
 }
-
 
 std::vector<Point> gatherPoints(std::vector<Point>& localPoints, int rank, int size) {
     int dim = localPoints[0].items.size();
@@ -223,7 +182,6 @@ std::vector<Point> gatherPoints(std::vector<Point>& localPoints, int rank, int s
     }
 }
 
-
 std::vector<std::vector<double>> reduceClusterSums(std::vector<std::vector<double>>& localSums, int k, int rank, int size) {
     int dim = localSums[0].size();
     std::vector<double> localFlat, globalFlat(k * dim);
@@ -248,45 +206,7 @@ std::vector<int> reduceClusterCounts(const std::vector<int>& localCounts, int k,
 }
 
 // ------------------- Read CSV (Only rank 0 reads in MPI) -------------------
-std::vector<Point> readCSV(std::string filename) {
-    std::vector<Point> csvVector;
-
-    std::ifstream csvFile(filename);
-    if (!csvFile.is_open()) {
-        std::cerr << "Error opening file: " << filename << std::endl;
-        return csvVector;
-    }
-
-    std::string line;
-    std::getline(csvFile, line); // skip header
-
-    while (std::getline(csvFile, line)) {
-        std::stringstream ss(line);
-        std::string token;
-        std::vector<double> items;
-
-        int col = 0;
-        while (std::getline(ss, token, ',')) {
-            if (col >= 9 && col < 20) {
-                try {
-                    items.push_back(std::stod(token));
-                    ++col;
-                } catch (...) {
-                    col = 9;
-                }
-            } else {
-                ++col;
-            }
-        }
-
-        if (!items.empty()) {
-            csvVector.emplace_back(items);
-        }
-    }
-
-    csvFile.close();
-    return csvVector;
-}
+// Removed duplicate readCSV function - now using readCSVNormalized from utils.h
 
 // Just rank 0 needs to do this
 void writeToCSV(const std::vector<Point>& points, const std::string& filename){
@@ -311,7 +231,6 @@ void kMeansMPI(std::vector<Point>& allPoints, int k, int epochs, int rank, int s
     std::vector<Point> localPoints = scatterPoints(allPoints, rank, size); 
     std::cout << "[Rank " << rank << "] Got " << localPoints.size() << " points.\n";
 
-
     // Step 2: Initialize centroids on root, then broadcast
     std::vector<Point> centroids;
     if (rank == 0) {
@@ -328,7 +247,7 @@ void kMeansMPI(std::vector<Point>& allPoints, int k, int epochs, int rank, int s
         for (Point& p : localPoints) {
             p.minDist = DBL_MAX;  // Reset BEFORE assigning
             for (int i = 0; i < k; ++i) {
-                double dist = centroids[i].distance(p);
+                double dist = centroids[i].distance(&p);
                 if (dist < p.minDist) {
                     p.minDist = dist;
                     p.cluster = i;
@@ -369,7 +288,6 @@ void kMeansMPI(std::vector<Point>& allPoints, int k, int epochs, int rank, int s
     // Step 8: Gather results to root
     std::vector<Point> allClusteredPoints = gatherPoints(localPoints, rank, size);
 
-
     if (rank == 0) {
         std::map<int, int> clusterCounts;
         for (const Point& pt : allClusteredPoints) {
@@ -389,10 +307,7 @@ void kMeansMPI(std::vector<Point>& allPoints, int k, int epochs, int rank, int s
         std::cout << "Wrote clustered data to output_mpi.csv\n";
         compareFiles("data/output.csv", "data/output_mpi.csv");
     }
-    
 }
-
-
 
 int main(int argc, char** argv) {
     MPI_Init(&argc, &argv);
@@ -403,7 +318,7 @@ int main(int argc, char** argv) {
 
     std::vector<Point> allPoints;
     if (rank == 0) {
-        allPoints = readCSV("data/tracks_features.csv");
+        allPoints = readCSVNormalized("data/tracks_features.csv");
     }
 
     kMeansMPI(allPoints, 5, 5, rank, size);
