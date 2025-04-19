@@ -305,7 +305,7 @@ void kMeansMPI(std::vector<Point>& allPoints, int k, int epochs, int rank, int s
     }
     if (rank == 0) {
         std::cout << "Wrote clustered data to output_mpi.csv\n";
-        compareFiles("data/output.csv", "data/output_mpi.csv");
+        compareFiles("data/output_normalized_chpc.csv", "data/output_mpi.csv");
     }
 }
 
