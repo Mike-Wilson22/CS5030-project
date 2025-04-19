@@ -374,7 +374,7 @@ int main(int argc, char** argv) {
     // Only rank 0 writes the output and compares files
     if (rank == 0) {
         writeToCSV(points, "data/output_gpu_mpi.csv");
-        compareFiles("data/output.csv", "data/output_gpu_mpi.csv");
+        compareFiles("data/output_normalized.csv", "data/output_gpu_mpi.csv");
         free(points);
     }
     
