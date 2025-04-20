@@ -10,6 +10,8 @@
 void initCuda(double **d_sums, Point **d_points, Point **d_centroids, int **d_nPoints, int **d_k, int k, int **d_size, int localPointsCount, Point *localPoints);
 void launchCuda(Point **d_centroids, Point *pointsCentroid, Point **d_points, double *sums, double **d_sums, int **d_nPoints, int *nPoints, int **d_k, int **d_size, int numBlocks, int blockSize);
 void getCudaPointsAndFree(Point *localPoints, Point **d_points, int localPointsCount, Point **d_centroids, int **d_k, int **d_size, double **d_sums, int **d_nPoints);
+void assignGPU(int rank);
+
 
 // Helper function to flatten points for MPI communication
 double* flattenPoints(Point* points, int numPoints) {
@@ -128,16 +130,25 @@ void gatherPoints(Point* localPoints, int localCount, Point* allPoints, int tota
     }
     
     // Calculate receive counts and displacements for MPI_Gatherv
-    int* recvCounts = new int[size];
-    int* displs = new int[size];
+    int* pointRecvCounts = new int[size];
+    int* pointDispls = new int[size];
+    int* clustRecvCounts = new int[size];
+    int* clustDispls = new int[size];
     
     // Gather the number of points each process has
-    MPI_Gather(&localCount, 1, MPI_INT, recvCounts, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    int tempCount = localCount * ITEM_NUM;
+    MPI_Gather(&localCount, 1, MPI_INT, clustRecvCounts, 1, MPI_INT, 0, MPI_COMM_WORLD);
+    MPI_Gather(&tempCount, 1, MPI_INT, pointRecvCounts, 1, MPI_INT, 0, MPI_COMM_WORLD);
     
     if (rank == 0) {
-        displs[0] = 0;
+        pointDispls[0] = 0;
         for (int i = 1; i < size; i++) {
-            displs[i] = displs[i-1] + recvCounts[i-1];
+            pointDispls[i] = pointDispls[i-1] + pointRecvCounts[i-1];
+        }
+
+        clustDispls[0] = 0;
+        for (int i = 1; i < size; i++) {
+            clustDispls[i] = clustDispls[i-1] + clustRecvCounts[i-1];
         }
     }
     
@@ -152,12 +163,12 @@ void gatherPoints(Point* localPoints, int localCount, Point* allPoints, int tota
     
     // Gather flattened points
     MPI_Gatherv(flatLocal, localCount * ITEM_NUM, MPI_DOUBLE,
-                flatAll, recvCounts, displs, MPI_DOUBLE,
+                flatAll, pointRecvCounts, pointDispls, MPI_DOUBLE,
                 0, MPI_COMM_WORLD);
     
     // Gather clusters
     MPI_Gatherv(localClusters, localCount, MPI_INT,
-                allClusters, recvCounts, displs, MPI_INT,
+                allClusters, clustRecvCounts, clustDispls, MPI_INT,
                 0, MPI_COMM_WORLD);
     
     // Reconstruct points on root
@@ -173,8 +184,10 @@ void gatherPoints(Point* localPoints, int localCount, Point* allPoints, int tota
     // Clean up
     delete[] flatLocal;
     delete[] localClusters;
-    delete[] recvCounts;
-    delete[] displs;
+    delete[] pointRecvCounts;
+    delete[] pointDispls;
+    delete[] clustRecvCounts;
+    delete[] clustDispls;
     
     if (rank == 0) {
         delete[] flatAll;
@@ -296,23 +309,39 @@ int main(int argc, char** argv) {
     int rank, size;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &size);
+
+    assignGPU(rank);
     
     Point* points = nullptr;
     
     // Only rank 0 reads the CSV file
     if (rank == 0) {
-        points = readCSV("data/tracks_features.csv");
+        points = readCSVNormalized("data/tracks_features.csv");
+    }
+
+    for (int i = 0; i < 3; i++) {
+        std::chrono::time_point<std::chrono::high_resolution_clock> start;
+        std::clock_t start2;
+        if (rank == 0) {
+            std::cout << "Start" << std::endl;
+            start = startTimerWall();
+            start2 = startTimerCPU();
+        }
+        kMeans(points, 5, K_CLUSTERS, 5);
+        
+        if (rank == 0) {
+            endTimerWall(start);
+            endTimerCPU(start2);
+        }
     }
     
-    std::cout << "[Rank " << rank << "] Started kmeans" << std::endl;
-    kMeans(points, 5, K_CLUSTERS, 5);
-    std::cout << "[Rank " << rank << "] Finished kmeans" << std::endl;
+    // std::cout << "[Rank " << rank << "] Started kmeans" << std::endl;
+    // std::cout << "[Rank " << rank << "] Finished kmeans" << std::endl;
     
     // Only rank 0 writes the output and compares files
     if (rank == 0) {
         writeToCSV(points, "data/output_gpu_mpi.csv");
         compareFiles("data/output_normalized.csv", "data/output_gpu_mpi.csv");
-        free(points);
     }
     
     // Finalize MPI

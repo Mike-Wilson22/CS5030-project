@@ -10,6 +10,7 @@
 #include <numeric>
 #include <algorithm>
 #include <random>
+#include <map>
 #include "utils.h" 
 
 //Helper functions for MPI
@@ -227,6 +228,14 @@ void writeToCSV(const std::vector<Point>& points, const std::string& filename){
 
 // ------------------- Core KMeans with MPI -------------------
 void kMeansMPI(std::vector<Point>& allPoints, int k, int epochs, int rank, int size) {
+    std::chrono::time_point<std::chrono::high_resolution_clock> start;
+    std::clock_t start2;
+    if (rank == 0) {
+        std::cout << "Start" << std::endl;
+        start = startTimerWall();
+        start2 = startTimerCPU();
+    }
+
     // Step 1: Scatter data among processes (Split allPoints)
     std::vector<Point> localPoints = scatterPoints(allPoints, rank, size); 
     std::cout << "[Rank " << rank << "] Got " << localPoints.size() << " points.\n";
@@ -298,6 +307,11 @@ void kMeansMPI(std::vector<Point>& allPoints, int k, int epochs, int rank, int s
             std::cout << "  Cluster " << c << ": " << count << " points\n";
         }
     }
+
+    if (rank == 0) {
+        endTimerWall(start);
+        endTimerCPU(start2);
+    }
     
     // Step 9: Only root writes to CSV
     if (rank == 0) {
@@ -321,10 +335,21 @@ int main(int argc, char** argv) {
         allPoints = readCSVNormalized("data/tracks_features.csv");
     }
 
-    kMeansMPI(allPoints, 5, 5, rank, size);
+    for (int i = 0; i < 3; i++) {
+        kMeansMPI(allPoints, 5, 5, rank, size);
+    }
+    
 
     MPI_Finalize();
     return 0;
 }
 
 
+// Time taken to run (wall clock): [11.319839, 11.224507, 11.151264] seconds (2 threads)
+// Time taken to run (cpu clock): [11.2872, 11.1903, 11.1201] seconds (2 threads)
+
+// Time taken to run (wall clock): [8.008619, 8.098277, 8.180822] seconds (3 threads)
+// Time taken to run (cpu clock): [7.98367, 8.0727, 8.1555] seconds (3 threads)
+
+// Time taken to run (wall clock): [6.564681, 6.493279, 6.656412] seconds (4 threads)
+// Time taken to run (cpu clock): [6.54458, 6.47234, 6.6372] seconds (4 threads)

@@ -94,3 +94,7 @@ extern "C++" void getCudaPointsAndFree(Point *localPoints, Point **d_points, int
     cudaFree(*d_sums);
     cudaFree(*d_nPoints);
 }
+
+extern "C++" void assignGPU(int rank) {
+    cudaSetDevice(rank);
+}
