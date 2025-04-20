@@ -319,24 +319,24 @@ int main(int argc, char** argv) {
         points = readCSVNormalized("data/tracks_features.csv");
     }
 
-    for (int i = 0; i < 3; i++) {
-        std::chrono::time_point<std::chrono::high_resolution_clock> start;
-        std::clock_t start2;
-        if (rank == 0) {
-            std::cout << "Start" << std::endl;
-            start = startTimerWall();
-            start2 = startTimerCPU();
-        }
-        kMeans(points, 5, K_CLUSTERS, 5);
+    // for (int i = 0; i < 3; i++) {
+    //     std::chrono::time_point<std::chrono::high_resolution_clock> start;
+    //     std::clock_t start2;
+    //     if (rank == 0) {
+    //         std::cout << "Start" << std::endl;
+    //         start = startTimerWall();
+    //         start2 = startTimerCPU();
+    //     }
         
-        if (rank == 0) {
-            endTimerWall(start);
-            endTimerCPU(start2);
-        }
-    }
+    //     if (rank == 0) {
+    //         endTimerWall(start);
+    //         endTimerCPU(start2);
+    //     }
+    // }
     
-    // std::cout << "[Rank " << rank << "] Started kmeans" << std::endl;
-    // std::cout << "[Rank " << rank << "] Finished kmeans" << std::endl;
+    std::cout << "[Rank " << rank << "] Started kmeans" << std::endl;
+    kMeans(points, 5, K_CLUSTERS, 5);
+    std::cout << "[Rank " << rank << "] Finished kmeans" << std::endl;
     
     // Only rank 0 writes the output and compares files
     if (rank == 0) {

@@ -228,13 +228,13 @@ void writeToCSV(const std::vector<Point>& points, const std::string& filename){
 
 // ------------------- Core KMeans with MPI -------------------
 void kMeansMPI(std::vector<Point>& allPoints, int k, int epochs, int rank, int size) {
-    std::chrono::time_point<std::chrono::high_resolution_clock> start;
-    std::clock_t start2;
-    if (rank == 0) {
-        std::cout << "Start" << std::endl;
-        start = startTimerWall();
-        start2 = startTimerCPU();
-    }
+    // std::chrono::time_point<std::chrono::high_resolution_clock> start;
+    // std::clock_t start2;
+    // if (rank == 0) {
+    //     std::cout << "Start" << std::endl;
+    //     start = startTimerWall();
+    //     start2 = startTimerCPU();
+    // }
 
     // Step 1: Scatter data among processes (Split allPoints)
     std::vector<Point> localPoints = scatterPoints(allPoints, rank, size); 
@@ -308,10 +308,10 @@ void kMeansMPI(std::vector<Point>& allPoints, int k, int epochs, int rank, int s
         }
     }
 
-    if (rank == 0) {
-        endTimerWall(start);
-        endTimerCPU(start2);
-    }
+    // if (rank == 0) {
+    //     endTimerWall(start);
+    //     endTimerCPU(start2);
+    // }
     
     // Step 9: Only root writes to CSV
     if (rank == 0) {
@@ -335,9 +335,9 @@ int main(int argc, char** argv) {
         allPoints = readCSVNormalized("data/tracks_features.csv");
     }
 
-    for (int i = 0; i < 3; i++) {
-        kMeansMPI(allPoints, 5, 5, rank, size);
-    }
+    // for (int i = 0; i < 3; i++) {
+    // }
+    kMeansMPI(allPoints, 5, 5, rank, size);
     
 
     MPI_Finalize();
