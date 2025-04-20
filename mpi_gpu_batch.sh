@@ -4,7 +4,7 @@
 #SBATCH -p notchpeak-gpu # Partition on some cluster
 #SBATCH -A notchpeak-gpu # The account associated with the above partition
 #SBATCH -t 00:05:00 # 2 hours (D-HH:MM) 
-#SBATCH --gres=gpu:v100:3
+#SBATCH --gres=gpu:2080ti:4
 #SBATCH -o myprog%A%a.out # Standard output 
 #SBATCH -e myprog%A%a.err # Standard error
 
