@@ -15,7 +15,7 @@ Note: Serial implementation must be run before any parallel implementations in o
     2. Run the generated executable
 5. GPU (Shared) implementation (Transfer sharedGPU.cu to CHPC)
     1. Load cuda with “module load cuda”
-    2. Compile with “nvcc -arch=sm_60 sharedGPU.cu -o sharedGPU”
+    2. Compile with “nvcc -arch=sm_60 utilsGPU.cpp sharedGPU.cu -o sharedGPU”
     3. Run the generated executable
 6. MPI implementation (Transfer MPI.cpp to CHPC)
     1. Load mpi with “module load gcc” and “module load intel-mpi”
