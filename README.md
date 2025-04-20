@@ -29,3 +29,11 @@ Note: Serial implementation must be run before any parallel implementations in o
         4. "module load cmake"
     2. Compile with “make”
     3. Run the generated executable with “mpirun -n [number of processes] ./mpi-cuda”
+8. Visualization of output (requires matplotlib and pandas libraries)
+    1. From the parent folder, run "python SpotifyPlot/plot.py"
+    2. This will look in the data/ folder for "output_normalized.csv" and plot it
+9. Scaling Studies (requires matplotlib)
+    1. Run this file "SpotifyPlot/plot_scaling_study.py"
+    2. This file can be ran from any directory, as it does not access any other files--the scaling study data is embedded in the file
+    3. This outputs several different graphs showing the time and efficiency of different implementations with differing amounts of threads
+    4. The graphs must be closed in order to generate the next graph

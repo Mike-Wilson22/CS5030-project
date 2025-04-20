@@ -82,17 +82,17 @@ int main() {
         return 1;
     }
 
-    // for (int i = 0; i < 3; i++) {
-    //     std::cout << "Start" << std::endl;
-    //     // auto start = startTimerWall();
-    //     auto start = startTimerCPU();
+    for (int i = 0; i < 3; i++) {
+        std::cout << "Start" << std::endl;
+        auto start2 = startTimerWall();
+        auto start = startTimerCPU();
         
+        kMeans(&points, 5, 5);
         
-    //     // endTimerWall(start);
-    //     endTimerCPU(start);
-    // }
+        endTimerWall(start2);
+        endTimerCPU(start);
+    }
 
-    kMeans(&points, 5, 5);
 
     writeToCSV(&points, "data/output_normalized.csv");
     // compareFiles("data/output_normalized.csv", "data/output_normalized_chpc.csv");

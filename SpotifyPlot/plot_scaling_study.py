@@ -61,7 +61,8 @@ def conditionGPUData():
     return gpu_threads, condensed_gpu_times
 
 def conditionDistributedData():
-    total_serial = getSerialData()
+    total_serial = 18.8207
+    throwaway, total_gpu = conditionGPUData()
     num_nodes = [2, 3, 4]
 
     mpi_times = [
@@ -78,7 +79,21 @@ def conditionDistributedData():
         new_time /= len(time_list)
         condensed_mpi_times.append(new_time)
 
-    return num_nodes, condensed_mpi_times, total_serial
+    mpi_gpu_times = [
+        [0.852680, 0.745529, 0.744594],
+        [1.698403, 1.557478, 1.570966],
+        [1.508165, 1.534726, 1.449619]
+    ]
+
+    condensed_mpi_gpu_times = []
+    for time_list in mpi_gpu_times:
+        new_time = 0
+        for time in time_list:
+            new_time += time
+        new_time /= len(time_list)
+        condensed_mpi_gpu_times.append(new_time)
+
+    return num_nodes, condensed_mpi_times, condensed_mpi_gpu_times, total_serial, total_gpu[1]
 
 
 def plotSharedTime():
@@ -129,11 +144,12 @@ def plotGPUBlocks():
     plt.show()
 
 def plotDistributedTime():
-    num_nodes, condensed_mpi_times, total_serial = conditionDistributedData()
+    num_nodes, condensed_mpi_times, condensed_mpi_gpu_times, total_serial, total_gpu = conditionDistributedData()
 
     plt.plot(num_nodes, condensed_mpi_times, label='MPI', marker='o', linestyle='-')
-    # plt.plot(num_nodes, condensed_mpi_gpu_times, label='MPI GPU', marker='o', linestyle='-')
+    plt.plot(num_nodes, condensed_mpi_gpu_times, label='MPI GPU', marker='o', linestyle='-')
     plt.plot(1, total_serial, label='Serial', marker='x', markersize=10, linestyle='-')
+    plt.plot(1, total_gpu, label='GPU', marker='x', markersize=10, linestyle='-')
 
     plt.xlabel('Nodes')
     plt.ylabel('Time')
@@ -144,21 +160,20 @@ def plotDistributedTime():
     plt.show()
 
 def plotDistributedEfficiency():
-    num_nodes, condensed_mpi_times, total_serial = conditionDistributedData()
+    num_nodes, condensed_mpi_times, condensed_mpi_gpu_times, total_serial, total_gpu = conditionDistributedData()
 
     efficiency_mpi = []
     for i in range(len(num_nodes)):
         theoritical_efficiency = total_serial / num_nodes[i]
-        efficiency_mpi.append(theoritical_efficiency / condensed_mpi_times[i-1])
+        efficiency_mpi.append(theoritical_efficiency / condensed_mpi_times[i])
 
-    # efficiency_mpi_gpu = []
-    # for i in range(len(num_nodes)):
-    #     theoritical_efficiency = total_serial / num_nodes[i]
-    #     efficiency_mpi_gpu.append(theoritical_efficiency / condensed_mpi_gpu_times[i-1])
+    efficiency_mpi_gpu = []
+    for i in range(len(num_nodes)):
+        theoritical_efficiency = total_gpu / num_nodes[i]
+        efficiency_mpi_gpu.append(theoritical_efficiency / condensed_mpi_gpu_times[i])
 
     plt.plot(num_nodes, efficiency_mpi, label='MPI', marker='o', linestyle='-')
-    # plt.plot(num_nodes, efficiency_mpi_gpu, label='MPI GPU', marker='o', linestyle='-')
-    plt.plot(1, total_serial, label='Serial', marker='x', markersize=10, linestyle='-')
+    plt.plot(num_nodes, efficiency_mpi_gpu, label='MPI GPU', marker='o', linestyle='-')
 
     plt.xlabel('Nodes')
     plt.ylabel('Efficiency')

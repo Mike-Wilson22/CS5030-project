@@ -235,7 +235,7 @@ void kMeans(Point* pointsArray, int epochs, int k, int thread_num) {
     
     int *d_k, *d_size;
     
-    int blockSize = 256;
+    int blockSize = 32;
     int numBlocks = (localPointsCount + blockSize - 1) / blockSize;
 
     initCuda(&d_sums, &d_points, &d_centroids, &d_nPoints, &d_k, k, &d_size, localPointsCount, localPoints);
@@ -318,25 +318,26 @@ int main(int argc, char** argv) {
     if (rank == 0) {
         points = readCSVNormalized("data/tracks_features.csv");
     }
+    std::cout << "Rank: " << rank << " started" <<std::endl;
 
-    // for (int i = 0; i < 3; i++) {
-    //     std::chrono::time_point<std::chrono::high_resolution_clock> start;
-    //     std::clock_t start2;
-    //     if (rank == 0) {
-    //         std::cout << "Start" << std::endl;
-    //         start = startTimerWall();
-    //         start2 = startTimerCPU();
-    //     }
-        
-    //     if (rank == 0) {
-    //         endTimerWall(start);
-    //         endTimerCPU(start2);
-    //     }
-    // }
+    for (int i = 0; i < 3; i++) {
+        std::chrono::time_point<std::chrono::high_resolution_clock> start;
+        std::clock_t start2;
+        if (rank == 0) {
+            std::cout << "Start" << std::endl;
+            start = startTimerWall();
+            start2 = startTimerCPU();
+        }
     
-    std::cout << "[Rank " << rank << "] Started kmeans" << std::endl;
-    kMeans(points, 5, K_CLUSTERS, 5);
-    std::cout << "[Rank " << rank << "] Finished kmeans" << std::endl;
+        kMeans(points, 5, K_CLUSTERS, 5);
+        if (rank == 0) {
+            endTimerWall(start);
+            endTimerCPU(start2);
+        }
+    }
+    
+    // std::cout << "[Rank " << rank << "] Started kmeans" << std::endl;
+    // std::cout << "[Rank " << rank << "] Finished kmeans" << std::endl;
     
     // Only rank 0 writes the output and compares files
     if (rank == 0) {

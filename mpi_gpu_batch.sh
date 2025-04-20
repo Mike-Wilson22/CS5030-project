@@ -3,7 +3,7 @@
 #SBATCH -N 1 # All tasks on one machine 
 #SBATCH -p notchpeak-gpu # Partition on some cluster
 #SBATCH -A notchpeak-gpu # The account associated with the above partition
-#SBATCH -t 00:02:00 # 2 hours (D-HH:MM) 
+#SBATCH -t 00:05:00 # 2 hours (D-HH:MM) 
 #SBATCH --gres=gpu:v100:3
 #SBATCH -o myprog%A%a.out # Standard output 
 #SBATCH -e myprog%A%a.err # Standard error
@@ -18,6 +18,6 @@ module load cuda
 module load cmake
 
 #Run the program with our input
-mpirun -n 2 ./mpi-cuda
-mpirun -n 3 ./mpi-cuda
-# mpirun -n 4 ./mpi-cuda
+# mpirun -n 2 ./mpi-cuda
+# mpirun -n 3 ./mpi-cuda
+mpirun -n 4 ./mpi-cuda
